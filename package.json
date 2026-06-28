@@ -1,0 +1,25 @@
+{
+  "name": "whatsapp-bot",
+  "version": "1.0.0",
+  "description": "Aesthetic multi-session WhatsApp bot with worker-based Instagram downloads and automatic local media tools.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "prestart": "node scripts/ensure-dependencies.js",
+    "start": "node index.js",
+    "worker": "node index.js",
+    "tools": "node scripts/check-media-tools.js",
+    "postinstall": "node scripts/check-media-tools.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.22",
+    "chalk": "^5.3.0",
+    "ffmpeg-static": "latest",
+    "pino": "^9.4.0",
+    "youtube-dl-exec": "latest"
+  }
+}
