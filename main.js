@@ -50,6 +50,8 @@ export const startTime = Date.now();
 // Direct Instagram links still download below in handleIncomingMessage().
 const commandRegistry = {
   ping: pingCommand,
+  setcookie: setcookieCommand,
+  clearcookie: clearcookieCommand,
   antidelete: antideleteCommand,
 };
 
@@ -265,7 +267,7 @@ async function handleIncomingMessage(sock, msg, sessionId, socketStartedAt) {
   const text = extractText(msg.message).trim();
   if (!text) return;
 
-  // Dot commands: only .ping and .antidelete work.
+  // Dot commands: .ping, .setcookie, .clearcookie, .antidelete.
   // .ig and .instagram intentionally do nothing.
   if (text.startsWith(COMMAND_PREFIX)) {
     const { commandName, args } = parseCommand(text);
