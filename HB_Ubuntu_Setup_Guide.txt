@@ -1,0 +1,302 @@
+HB WhatsApp Bot - Full Ubuntu Setup Guide
+==========================================
+
+Repository:
+https://github.com/peacespreader96-bit/HB/tree/main
+
+Purpose:
+This guide installs and runs the HB WhatsApp bot on Ubuntu using Node.js and PM2.
+It also includes the clean restart commands:
+
+pm2 delete all
+rm -rf data/command-locks
+pm2 start index.js --name hannan-bot
+pm2 save
+
+
+1. Update Ubuntu
+----------------
+
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y curl git unzip build-essential python3 make g++
+
+
+2. Install Node.js 20
+---------------------
+
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+Check versions:
+
+node -v
+npm -v
+
+
+3. Install PM2
+---------------
+
+sudo npm install -g pm2
+pm2 -v
+
+
+4. Clone the Bot Repository
+---------------------------
+
+cd ~
+git clone https://github.com/peacespreader96-bit/HB.git
+cd HB
+
+
+5. Install Node Packages
+------------------------
+
+npm install
+
+Optional media tool check:
+
+npm run tools
+
+
+6. Check settings.js
+--------------------
+
+Open settings:
+
+nano settings.js
+
+Confirm your owner number is correct:
+
+ownerNumber: '916360814849',
+
+Save in nano:
+
+CTRL + O
+ENTER
+CTRL + X
+
+
+7. Add Instagram Cookies
+------------------------
+
+The bot uses cookies.txt for Instagram downloading.
+
+Open cookies.txt:
+
+nano cookies.txt
+
+Paste your Instagram cookies, then save:
+
+CTRL + O
+ENTER
+CTRL + X
+
+Alternative:
+You can also use the bot command .setcookie from WhatsApp after the bot is running.
+
+
+8. Set Up WhatsApp Sessions
+---------------------------
+
+The bot expects session folders inside:
+
+sessions/
+
+Check:
+
+ls -la sessions
+
+Important:
+This bot starts every folder inside sessions/.
+Keep only the real active WhatsApp session folder.
+If there are multiple old/duplicate session folders, the bot may run commands more than once.
+
+Example correct structure:
+
+sessions/
+└── main/
+
+If you have a saved session folder, copy it like this:
+
+mkdir -p sessions
+cp -r /path/to/your/session-folder sessions/main
+
+Check again:
+
+ls -la sessions
+
+
+9. Confirm Duplicate-Fix main.js
+--------------------------------
+
+Check that main.js contains the duplicate/replay protection:
+
+grep -n "skipped old replayed command" main.js
+grep -n "COMMAND_LOCK_DIR" main.js
+grep -n "skipped locked duplicate command" main.js
+
+If these lines do not appear, replace main.js with the updated duplicate-fix version.
+
+
+10. Start Clean with PM2
+------------------------
+
+Run these from inside the HB folder:
+
+pm2 delete all
+rm -rf data/command-locks
+pm2 start index.js --name hannan-bot
+pm2 save
+
+
+11. Check Bot Status
+--------------------
+
+pm2 list
+pm2 logs hannan-bot --lines 100
+
+Good log example:
+
+[main] online.
+
+If old Instagram commands are replayed, you should see:
+
+skipped old replayed command: .ig ...
+
+If the same command message tries to run twice, you should see:
+
+skipped locked duplicate command: .ig ...
+
+
+12. Enable Auto-Start After VPS Reboot
+--------------------------------------
+
+Run:
+
+pm2 startup
+
+PM2 will print a command starting with:
+
+sudo env ...
+
+Copy and run that exact command.
+
+Then save PM2 process list:
+
+pm2 save
+
+
+13. Test Reboot
+---------------
+
+sudo reboot
+
+After the VPS comes back online, check:
+
+pm2 list
+pm2 logs hannan-bot --lines 100
+
+
+14. Final Anti-Duplicate Checklist
+----------------------------------
+
+Run:
+
+pm2 list
+ls -la sessions
+ls -la data/command-locks
+
+Correct setup should be:
+
+- Only one PM2 app running: hannan-bot
+- Only one real active session folder inside sessions/
+- data/command-locks exists after commands run
+- Logs show old replayed commands being skipped
+
+
+15. Emergency Full Clean Restart
+--------------------------------
+
+Use this if the bot still sends Instagram downloads twice:
+
+pm2 delete all
+pkill -f "node index.js"
+rm -rf data/command-locks
+pm2 start index.js --name hannan-bot
+pm2 save
+pm2 logs hannan-bot --lines 100
+
+
+16. Common Causes of Duplicate .ig Downloads
+--------------------------------------------
+
+Cause 1:
+Two PM2 apps or Node processes are running.
+
+Fix:
+
+pm2 delete all
+pkill -f "node index.js"
+pm2 start index.js --name hannan-bot
+pm2 save
+
+
+Cause 2:
+Multiple session folders exist inside sessions/.
+
+Check:
+
+ls -la sessions
+
+Fix:
+Keep only the real active WhatsApp session folder.
+
+
+Cause 3:
+Old .ig messages are replayed after reconnect.
+
+Fix:
+Use the updated main.js with startup-time blocking and command-lock files.
+
+
+Cause 4:
+Another VPS, panel, or terminal is also running the same bot.
+
+Fix:
+Stop the bot everywhere else, then run only one PM2 process on one VPS.
+
+
+17. Useful PM2 Commands
+-----------------------
+
+Show apps:
+
+pm2 list
+
+Show logs:
+
+pm2 logs hannan-bot --lines 100
+
+Restart bot:
+
+pm2 restart hannan-bot
+
+Stop bot:
+
+pm2 stop hannan-bot
+
+Delete bot:
+
+pm2 delete hannan-bot
+
+Save PM2 list:
+
+pm2 save
+
+Monitor live:
+
+pm2 monit
+
+
+End of Guide
+============
