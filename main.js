@@ -33,9 +33,12 @@ const COMMAND_PREFIX = '.';
 const TEMP_FILE_MAX_AGE_MS = 60 * 60 * 1000;
 const TEMP_CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 
+const INSTAGRAM_DIRECT_URL_REGEX =
+  /https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|reels|tv)\/[A-Za-z0-9_-]+\/?(?:\?[^\s]*)?/i;
+
 // Important:
-// Any command older than this bot socket startup will be ignored.
-// This stops old .ig messages from running again after reconnect/history sync.
+// Any command/link older than this bot socket startup will be ignored.
+// This stops old .ig/direct IG messages from running again after reconnect/history sync.
 const STARTUP_GRACE_MS = 15 * 1000;
 
 // Keep command lock files for 24 hours.
@@ -43,12 +46,10 @@ const COMMAND_LOCK_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export const startTime = Date.now();
 
+// .ig and .instagram are intentionally removed.
+// Direct Instagram links still download below in handleIncomingMessage().
 const commandRegistry = {
   ping: pingCommand,
-  ig: instagramCommand,
-  instagram: instagramCommand,
-  setcookie: setcookieCommand,
-  clearcookie: clearcookieCommand,
   antidelete: antideleteCommand,
 };
 
@@ -120,6 +121,11 @@ function extractText(message) {
     message.documentMessage?.caption ||
     ''
   );
+}
+
+function extractInstagramUrl(text) {
+  const match = String(text || '').match(INSTAGRAM_DIRECT_URL_REGEX);
+  return match ? match[0] : '';
 }
 
 function getSenderJid(msg) {
@@ -257,24 +263,47 @@ async function handleIncomingMessage(sock, msg, sessionId, socketStartedAt) {
   }
 
   const text = extractText(msg.message).trim();
-  if (!text.startsWith(COMMAND_PREFIX)) return;
+  if (!text) return;
 
-  const { commandName, args } = parseCommand(text);
-  const command = commandRegistry[commandName];
-  if (!command) return;
+  // Dot commands: only .ping and .antidelete work.
+  // .ig and .instagram intentionally do nothing.
+  if (text.startsWith(COMMAND_PREFIX)) {
+    const { commandName, args } = parseCommand(text);
+    const command = commandRegistry[commandName];
+    if (!command) return;
+
+    if (isCommandFromBeforeSocketStart(msg, socketStartedAt)) {
+      console.log(chalk.gray(`[${sessionId}] skipped old replayed command: ${text.slice(0, 80)}`));
+      return;
+    }
+
+    if (!tryAcquireCommandLock(msg, sessionId, commandName, args)) {
+      console.log(chalk.gray(`[${sessionId}] skipped locked duplicate command: ${text.slice(0, 80)}`));
+      return;
+    }
+
+    console.log(chalk.cyan(`[${sessionId}] running command: ${text.slice(0, 80)}`));
+    await command(sock, msg, args, ctx);
+    return;
+  }
+
+  // Direct Instagram link downloader.
+  // Send only the Instagram link, no .ig needed.
+  const instagramUrl = extractInstagramUrl(text);
+  if (!instagramUrl) return;
 
   if (isCommandFromBeforeSocketStart(msg, socketStartedAt)) {
-    console.log(chalk.gray(`[${sessionId}] skipped old replayed command: ${text.slice(0, 80)}`));
+    console.log(chalk.gray(`[${sessionId}] skipped old replayed IG link: ${instagramUrl}`));
     return;
   }
 
-  if (!tryAcquireCommandLock(msg, sessionId, commandName, args)) {
-    console.log(chalk.gray(`[${sessionId}] skipped locked duplicate command: ${text.slice(0, 80)}`));
+  if (!tryAcquireCommandLock(msg, sessionId, 'direct-instagram', instagramUrl)) {
+    console.log(chalk.gray(`[${sessionId}] skipped locked duplicate IG link: ${instagramUrl}`));
     return;
   }
 
-  console.log(chalk.cyan(`[${sessionId}] running command: ${text.slice(0, 80)}`));
-  await command(sock, msg, args, ctx);
+  console.log(chalk.cyan(`[${sessionId}] running direct IG download: ${instagramUrl}`));
+  await instagramCommand(sock, msg, instagramUrl, ctx);
 }
 
 function registerMessageHandler(sock, sessionId, socketStartedAt) {
